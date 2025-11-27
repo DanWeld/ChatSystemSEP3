@@ -1,0 +1,185 @@
+@page "/friends"
+@attribute [Authorize]
+@using BlazorClient.Shared
+@using System.Net.Http.Json
+@inject FriendApiService FriendService
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject TokenStorageService TokenStorage
+@inject ToastService ToastService
+@inject Microsoft.JSInterop.IJSRuntime JSRuntime
+
+<h2>Friends</h2>
+
+<div class="friends-page">
+    <section class="friend-requests">
+        <h3>Pending Requests</h3>
+        @if (pendingRequests == null)
+        {
+            <p>Loading...</p>
+        }
+        else if (pendingRequests.Count == 0)
+        {
+            <p>No pending requests.</p>
+        }
+        else
+        {
+            <ul>
+                @foreach (var request in pendingRequests)
+                {
+                    <li>
+                        <strong>@request.SenderUsername</strong>
+                        <button @onclick="() => RespondAsync(request.Id, true)">Accept</button>
+                        <button class="secondary" @onclick="() => RespondAsync(request.Id, false)">Decline</button>
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+
+    <section class="friend-list">
+        <h3>Your Friends</h3>
+        @if (friends == null)
+        {
+            <p>Loading...</p>
+        }
+        else if (friends.Count == 0)
+        {
+            <p>You have no friends yet.</p>
+        }
+        else
+        {
+            <ul>
+                @foreach (var friend in friends)
+                {
+                    <li>
+                        <span>@friend.Username</span>
+                        <button @onclick="() => OpenChatWithFriend(friend.UserId)">Chat</button>
+                        <button class="danger" @onclick="() => RemoveFriendAsync(friend.UserId)">Remove</button>
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+
+    <section class="friend-send">
+        <h3>Send Friend Request</h3>
+        <EditForm Model="sendRequestModel" OnValidSubmit="SendRequestAsync">
+            <DataAnnotationsValidator />
+            <div class="form-field">
+                <label>Username</label>
+                <InputText @bind-Value="sendRequestModel.Username" placeholder="Enter username to search" />
+                <ValidationMessage For="@(() => sendRequestModel.Username)" />
+                <div class="field-description">Enter the exact username or part of it to search</div>
+            </div>
+            <button type="submit" disabled="@(string.IsNullOrWhiteSpace(sendRequestModel.Username))">
+                Send Request
+            </button>
+        </EditForm>
+        @if (!string.IsNullOrEmpty(message))
+        {
+            <p class="@(message.Contains("success") || message.Contains("sent") ? "success-message" : "error-message")">@message</p>
+        }
+    </section>
+</div>
+
+@code {
+    private List<FriendDto>? friends;
+    private List<FriendRequestDto>? pendingRequests;
+    private SendFriendRequestModel sendRequestModel = new();
+    private string? message;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        friends = await FriendService.GetFriendsAsync() ?? new List<FriendDto>();
+        pendingRequests = await FriendService.GetIncomingAsync() ?? new List<FriendRequestDto>();
+    }
+
+    private async Task SendRequestAsync()
+    {
+        message = null;
+        try
+        {
+            var success = await FriendService.SendRequestAsync(sendRequestModel.Username);
+            if (success)
+            {
+                message = $"Friend request sent to {sendRequestModel.Username} successfully!";
+                ToastService.ShowSuccess(message);
+                sendRequestModel = new SendFriendRequestModel();
+            }
+            else
+            {
+                message = "Failed to send friend request. The user may not exist or you may have already sent a request.";
+                ToastService.ShowError(message);
+            }
+        }
+        catch (Exception ex)
+        {
+            message = $"Error: {ex.Message}";
+            ToastService.ShowError(message);
+        }
+    }
+
+    private async Task RespondAsync(int requestId, bool accept)
+    {
+        await FriendService.RespondAsync(requestId, accept);
+        await ReloadAsync();
+    }
+
+    private async Task RemoveFriendAsync(int friendId)
+    {
+        var friend = friends?.FirstOrDefault(f => f.UserId == friendId);
+        if (friend == null) return;
+
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", 
+            new object[] { $"Are you sure you want to remove {friend.Username} from your friends list? Your message history will be preserved." });
+        
+        if (confirmed)
+        {
+            try
+            {
+                await FriendService.RemoveFriendAsync(friendId);
+                ToastService.ShowSuccess($"{friend.Username} has been removed from your friends list.");
+                await ReloadAsync();
+            }
+            catch (Exception ex)
+            {
+                ToastService.ShowError($"Failed to remove friend: {ex.Message}");
+            }
+        }
+    }
+
+    private async Task OpenChatWithFriend(int friendId)
+    {
+        try
+        {
+            var user = await TokenStorage.GetUserAsync();
+            if (user == null) return;
+
+            var httpResponse = await Http.GetAsync($"api/groupchat/private/{friendId}");
+            if (httpResponse.IsSuccessStatusCode)
+            {
+                var response = await httpResponse.Content.ReadFromJsonAsync<ChatRoomDto>();
+                if (response != null)
+                {
+                    Navigation.NavigateTo($"/chat/{response.Id}");
+                }
+            }
+            else
+            {
+                var errorContent = await httpResponse.Content.ReadAsStringAsync();
+                message = $"Error opening chat: {httpResponse.StatusCode}. {errorContent}";
+            }
+        }
+        catch (Exception ex)
+        {
+            message = $"Error opening chat: {ex.Message}";
+        }
+    }
+}
+

@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+option csharp_namespace = "Chat.Grpc";
+option java_multiple_files = true;
+option java_package = "com.example.chat.grpc";
+
+message User {
+  string id = 1;
+  string name = 2;
+}
+
+message Chat {
+  string id = 1;
+  string name = 2;
+}
+
+message Message {
+  string id = 1;
+  string chatId = 2;
+  string senderId = 3;
+  string text = 4;
+  int64 sentAtUnix = 5;
+}
+
+message SendMessageRequest {
+  string chatId = 1;
+  string senderId = 2;
+  string text = 3;
+}
+
+message SendMessageResponse {
+  Message message = 1;
+}
+
+message GetMessagesRequest {
+  string chatId = 1;
+}
+
+message GetMessagesResponse {
+  repeated Message messages = 1;
+}
+
+service ChatService {
+  rpc SendMessage (SendMessageRequest) returns (SendMessageResponse);
+  rpc GetMessages (GetMessagesRequest) returns (GetMessagesResponse);
+}

@@ -1,0 +1,410 @@
+@page "/chats"
+@attribute [Authorize]
+@using BlazorClient.Shared
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject TokenStorageService TokenStorage
+@inject FriendApiService FriendService
+@inject ToastService ToastService
+
+<style>
+    .chat-list-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+
+    .chat-list-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+    }
+
+    .chat-list-header h2 {
+        margin: 0;
+        color: #333;
+    }
+
+    .create-group-btn {
+        padding: 0.75rem 1.5rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .create-group-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    .chat-sections {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+    }
+
+    .chat-section {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .chat-section h3 {
+        margin: 0 0 1rem 0;
+        color: #667eea;
+        font-size: 1.25rem;
+    }
+
+    .chat-item {
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 0.5rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: 1px solid #e0e0e0;
+    }
+
+    .chat-item:hover {
+        background: #f5f5f5;
+        border-color: #667eea;
+    }
+
+    .chat-item-name {
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 0.25rem;
+    }
+
+    .chat-item-type {
+        font-size: 0.85rem;
+        color: #666;
+    }
+
+    .empty-state {
+        text-align: center;
+        color: #999;
+        padding: 2rem;
+        font-style: italic;
+    }
+
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    }
+
+    .modal-content {
+        background: white;
+        padding: 2rem;
+        border-radius: 12px;
+        max-width: 500px;
+        width: 90%;
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+
+    .modal-header h3 {
+        margin: 0;
+    }
+
+    .close-btn {
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: #666;
+    }
+
+    .form-group {
+        margin-bottom: 1rem;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        color: #333;
+    }
+
+    .form-group input,
+    .form-group textarea {
+        width: 100%;
+        padding: 0.75rem;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        font-size: 1rem;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: #667eea;
+    }
+
+    .modal-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: flex-end;
+        margin-top: 1.5rem;
+    }
+
+    .btn-primary {
+        padding: 0.75rem 1.5rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .btn-secondary {
+        padding: 0.75rem 1.5rem;
+        background: #e0e0e0;
+        color: #333;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+</style>
+
+<div class="chat-list-container">
+    <div class="chat-list-header">
+        <h2>My Chats</h2>
+        <button class="create-group-btn" @onclick="ShowCreateGroupModal">Create Group Chat</button>
+    </div>
+
+    <div class="chat-sections">
+        <div class="chat-section">
+            <h3>Friends</h3>
+            @if (friends.Count == 0)
+            {
+                <div class="empty-state">No friends yet. Add friends to start chatting!</div>
+            }
+            else
+            {
+                @foreach (var friend in friends)
+                {
+                    <div class="chat-item" @onclick="() => OpenPrivateChat(friend.UserId)">
+                        <div class="chat-item-name">@friend.Username</div>
+                        <div class="chat-item-type">Private Chat</div>
+                    </div>
+                }
+            }
+        </div>
+
+        <div class="chat-section">
+            <h3>Group Chats</h3>
+            @if (groupChats.Count == 0)
+            {
+                <div class="empty-state">No group chats yet. Create one to get started!</div>
+            }
+            else
+            {
+                @foreach (var chat in groupChats)
+                {
+                    <div class="chat-item" @onclick="() => OpenChat(chat.Id)">
+                        <div class="chat-item-name">@chat.Name</div>
+                        <div class="chat-item-type">Group Chat</div>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+</div>
+
+@if (showCreateModal)
+{
+    <div class="modal-overlay" @onclick="HideCreateGroupModal">
+        <div class="modal-content" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3>Create Group Chat</h3>
+                <button class="close-btn" @onclick="HideCreateGroupModal">×</button>
+            </div>
+            <div class="form-group">
+                <label>Group Name</label>
+                <input @bind="newGroupName" placeholder="Enter group name" />
+            </div>
+            <div class="form-group">
+                <label>Description (optional)</label>
+                <textarea @bind="newGroupDescription" placeholder="Enter description" rows="3"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Select Friends to Add</label>
+                @foreach (var friend in friends)
+                {
+                    <div>
+                        <input type="checkbox" @bind="selectedFriends" value="@friend.UserId" />
+                        <label>@friend.Username</label>
+                    </div>
+                }
+            </div>
+            <div class="modal-actions">
+                <button class="btn-secondary" @onclick="HideCreateGroupModal">Cancel</button>
+                <button class="btn-primary" @onclick="CreateGroupChat">Create</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<FriendDto> friends = new();
+    private List<ChatRoomDto> groupChats = new();
+    private bool showCreateModal = false;
+    private string newGroupName = string.Empty;
+    private string newGroupDescription = string.Empty;
+    private List<int> selectedFriends = new();
+    private int currentUserId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var user = await TokenStorage.GetUserAsync();
+            if (user == null)
+            {
+                Navigation.NavigateTo("login");
+                return;
+            }
+
+            currentUserId = user.Id;
+
+            await LoadFriends();
+            await LoadChatRooms();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error loading chats: {ex.Message}");
+        }
+    }
+
+    private async Task LoadFriends()
+    {
+        try
+        {
+            var result = await FriendService.GetFriendsAsync();
+            friends = result ?? new List<FriendDto>();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error loading friends: {ex.Message}");
+        }
+    }
+
+    private async Task LoadChatRooms()
+    {
+        try
+        {
+            var response = await Http.GetFromJsonAsync<List<ChatRoomDto>>("api/groupchat/my-chats");
+            if (response != null)
+            {
+                groupChats = response;
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error loading chat rooms: {ex.Message}");
+        }
+    }
+
+    private async Task OpenPrivateChat(int friendId)
+    {
+        try
+        {
+            var httpResponse = await Http.GetAsync($"api/groupchat/private/{friendId}");
+            if (httpResponse.IsSuccessStatusCode)
+            {
+                var response = await httpResponse.Content.ReadFromJsonAsync<ChatRoomDto>();
+                if (response != null)
+                {
+                    Navigation.NavigateTo($"/chat/{response.Id}");
+                }
+            }
+            else
+            {
+                var errorContent = await httpResponse.Content.ReadAsStringAsync();
+                ToastService.ShowError($"Error opening chat: {httpResponse.StatusCode}. {errorContent}");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error opening chat: {ex.Message}");
+        }
+    }
+
+    private void OpenChat(int chatRoomId)
+    {
+        Navigation.NavigateTo($"/chat/{chatRoomId}");
+    }
+
+    private void ShowCreateGroupModal()
+    {
+        showCreateModal = true;
+        selectedFriends.Clear();
+    }
+
+    private void HideCreateGroupModal()
+    {
+        showCreateModal = false;
+        newGroupName = string.Empty;
+        newGroupDescription = string.Empty;
+        selectedFriends.Clear();
+    }
+
+    private async Task CreateGroupChat()
+    {
+        if (string.IsNullOrWhiteSpace(newGroupName))
+        {
+            ToastService.ShowError("Group name is required");
+            return;
+        }
+
+        try
+        {
+            var request = new CreateGroupChatRequest
+            {
+                Name = newGroupName,
+                Description = newGroupDescription,
+                MemberIds = selectedFriends
+            };
+
+            var response = await Http.PostAsJsonAsync("api/groupchat", request);
+            if (response.IsSuccessStatusCode)
+            {
+                ToastService.ShowSuccess("Group chat created successfully!");
+                HideCreateGroupModal();
+                await LoadChatRooms();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                ToastService.ShowError($"Error creating group: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error creating group chat: {ex.Message}");
+        }
+    }
+}
+

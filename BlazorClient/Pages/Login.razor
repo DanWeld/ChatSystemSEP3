@@ -1,0 +1,180 @@
+@page "/login"
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+@inject ToastService ToastService
+@attribute [AllowAnonymous]
+
+<style>
+    .auth-container {
+        max-width: 400px;
+        margin: 2rem auto;
+        padding: 2rem;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .form-field {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-field label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        color: #333;
+    }
+
+    .form-field input {
+        width: 100%;
+        padding: 0.75rem;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: border-color 0.3s;
+    }
+
+    .form-field input:focus {
+        outline: none;
+        border-color: #667eea;
+    }
+
+    .form-field .validation-message {
+        color: #dc3545;
+        font-size: 0.875rem;
+        margin-top: 0.25rem;
+    }
+
+    button[type="submit"] {
+        width: 100%;
+        padding: 0.875rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+
+    button[type="submit"]:hover:not(:disabled) {
+        transform: translateY(-2px);
+    }
+
+    button[type="submit"]:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .error {
+        color: #dc3545;
+        background: #f8d7da;
+        padding: 0.75rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+    }
+
+    .success {
+        color: #155724;
+        background: #d4edda;
+        padding: 0.75rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+    }
+</style>
+
+<div class="auth-container">
+    <h2>Sign In</h2>
+
+    <EditForm Model="model" OnValidSubmit="HandleLoginAsync">
+        <DataAnnotationsValidator />
+
+        <div class="form-field">
+            <label for="username">Username</label>
+            <InputText id="username" @bind-Value="model.Username" class="form-control" />
+            <ValidationMessage For="@(() => model.Username)" />
+        </div>
+
+        <div class="form-field">
+            <label for="password">Password</label>
+            <InputText id="password" type="password" @bind-Value="model.Password" class="form-control" />
+            <ValidationMessage For="@(() => model.Password)" />
+        </div>
+
+        @if (!string.IsNullOrEmpty(error))
+        {
+            <div class="error">@error</div>
+        }
+
+        @if (!string.IsNullOrEmpty(successMessage))
+        {
+            <div class="success">@successMessage</div>
+        }
+
+        <button type="submit" disabled="@(string.IsNullOrWhiteSpace(model.Username) || string.IsNullOrWhiteSpace(model.Password))">
+            Sign In
+        </button>
+    </EditForm>
+
+    <p style="text-align: center; margin-top: 1.5rem;">
+        Need an account?
+        <a href="register">Register here</a>
+    </p>
+</div>
+
+@code {
+    private readonly LoginRequest model = new();
+    private string? error;
+    private string? successMessage;
+
+    [SupplyParameterFromQuery(Name = "returnUrl")]
+    public string? ReturnUrl { get; set; }
+
+    private async Task HandleLoginAsync()
+    {
+        error = null;
+        successMessage = null;
+        
+        try
+        {
+            Console.WriteLine($"Login attempt for username: {model.Username}");
+            var success = await AuthService.LoginAsync(model);
+            if (success)
+            {
+                Console.WriteLine("Login successful, navigating...");
+                successMessage = "Login successful! Redirecting...";
+                ToastService.ShowSuccess("Welcome back!");
+                await Task.Delay(500);
+                Navigation.NavigateTo(string.IsNullOrWhiteSpace(ReturnUrl) ? "/" : ReturnUrl!, true);
+            }
+            else
+            {
+                error = "Invalid username or password. Please check your credentials and ensure the server is running.";
+                ToastService.ShowError(error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Login exception: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            
+            // Parse error message for better user feedback
+            if (ex.Message.Contains("Invalid") || ex.Message.Contains("Unauthenticated"))
+            {
+                error = "Invalid username or password. Please check your credentials.";
+            }
+            else if (ex.Message.Contains("connect") || ex.Message.Contains("timeout"))
+            {
+                error = "Cannot connect to the server. Please ensure the server is running.";
+            }
+            else
+            {
+                error = $"Login failed: {ex.Message}";
+            }
+            
+            ToastService.ShowError(error);
+        }
+    }
+}
+

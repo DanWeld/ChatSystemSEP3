@@ -1,0 +1,142 @@
+@page "/diagnostics"
+@using Microsoft.Extensions.DependencyInjection
+@inject IHttpClientFactory HttpClientFactory
+
+<h2>System Diagnostics</h2>
+
+<div class="diagnostics-container">
+    <div class="diagnostic-section">
+        <h3>API Server Connection</h3>
+        <button @onclick="TestApiConnection" disabled="@testingApi">Test Connection</button>
+        @if (!string.IsNullOrEmpty(apiResult))
+        {
+            <p class="@(apiResult.Contains("success") ? "success" : "error")">@apiResult</p>
+        }
+    </div>
+
+    <div class="diagnostic-section">
+        <h3>gRPC Server Connection (via API)</h3>
+        <button @onclick="TestGrpcConnection" disabled="@testingGrpc">Test gRPC Connection</button>
+        @if (!string.IsNullOrEmpty(grpcResult))
+        {
+            <p class="@(grpcResult.Contains("connected") ? "success" : "error")">@grpcResult</p>
+        }
+    </div>
+</div>
+
+<style>
+    .diagnostics-container {
+        max-width: 800px;
+        margin: 2rem auto;
+        padding: 2rem;
+    }
+
+    .diagnostic-section {
+        background: white;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .diagnostic-section h3 {
+        margin-top: 0;
+        color: #333;
+    }
+
+    .diagnostic-section button {
+        padding: 0.75rem 1.5rem;
+        background: #667eea;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 600;
+    }
+
+    .diagnostic-section button:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+    }
+
+    .success {
+        color: #4caf50;
+        font-weight: 600;
+    }
+
+    .error {
+        color: #f44336;
+        font-weight: 600;
+    }
+</style>
+
+@code {
+    private bool testingApi = false;
+    private bool testingGrpc = false;
+    private string apiResult = string.Empty;
+    private string grpcResult = string.Empty;
+
+    private async Task TestApiConnection()
+    {
+        testingApi = true;
+        apiResult = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            var client = HttpClientFactory.CreateClient("UnauthenticatedClient");
+            var response = await client.GetAsync("api/test");
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                apiResult = $"✓ Success: {content}";
+            }
+            else
+            {
+                apiResult = $"✗ Failed: {response.StatusCode}";
+            }
+        }
+        catch (Exception ex)
+        {
+            apiResult = $"✗ Error: {ex.Message}";
+        }
+        finally
+        {
+            testingApi = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task TestGrpcConnection()
+    {
+        testingGrpc = true;
+        grpcResult = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            var client = HttpClientFactory.CreateClient("UnauthenticatedClient");
+            var response = await client.GetAsync("api/health/grpc");
+            var content = await response.Content.ReadAsStringAsync();
+            
+            if (response.IsSuccessStatusCode)
+            {
+                grpcResult = $"✓ {content}";
+            }
+            else
+            {
+                grpcResult = $"✗ {content}";
+            }
+        }
+        catch (Exception ex)
+        {
+            grpcResult = $"✗ Error: {ex.Message}";
+        }
+        finally
+        {
+            testingGrpc = false;
+            StateHasChanged();
+        }
+    }
+}
+

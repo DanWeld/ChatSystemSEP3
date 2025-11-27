@@ -1,0 +1,93 @@
+@page "/"
+@page "/chatrooms"
+@attribute [Authorize]
+@inject HttpClient Http
+@inject NavigationManager Navigation
+
+<h2>Chat Rooms</h2>
+
+<div class="chatrooms">
+    <EditForm Model="createModel" OnValidSubmit="CreateRoomAsync">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+        <div class="create-room">
+            <input @bind="createModel.Name" placeholder="New room name" />
+            <button type="submit">Create</button>
+        </div>
+    </EditForm>
+
+    @if (rooms.Count == 0)
+    {
+        <p>No chat rooms yet. Create one above!</p>
+    }
+    else
+    {
+        <ul>
+            @foreach (var room in rooms)
+            {
+                <li>
+                    <span>@room.Name</span>
+                    <button @onclick="() => NavigateToRoom(room.Id)">Open</button>
+                </li>
+            }
+        </ul>
+    }
+
+    @if (!string.IsNullOrEmpty(error))
+    {
+        <p class="error">@error</p>
+    }
+</div>
+
+@code {
+    private List<ChatRoomDto> rooms = new();
+    private CreateChatRoomRequest createModel = new();
+    private string? error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRoomsAsync();
+    }
+
+    private async Task LoadRoomsAsync()
+    {
+        try
+        {
+            error = null;
+            rooms = await Http.GetFromJsonAsync<List<ChatRoomDto>>("api/chatrooms") ?? new List<ChatRoomDto>();
+        }
+        catch
+        {
+            error = "Unable to load chat rooms.";
+            rooms = new List<ChatRoomDto>();
+        }
+    }
+
+    private async Task CreateRoomAsync()
+    {
+        error = null;
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/chatrooms", createModel);
+            if (response.IsSuccessStatusCode)
+            {
+                createModel = new CreateChatRoomRequest();
+                await LoadRoomsAsync();
+            }
+            else
+            {
+                error = "Unable to create chat room.";
+            }
+        }
+        catch
+        {
+            error = "Unable to create chat room.";
+        }
+    }
+
+    private void NavigateToRoom(int roomId)
+    {
+        Navigation.NavigateTo($"/chat/{roomId}");
+    }
+}
+

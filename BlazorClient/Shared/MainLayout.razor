@@ -1,0 +1,40 @@
+@inherits LayoutComponentBase
+@inject NavigationManager Navigation
+@inject AuthService AuthService
+
+<div class="main-layout">
+    <header class="main-header">
+        <h1 @onclick="NavigateHome">Chat Platform</h1>
+        <AuthorizeView>
+            <Authorized Context="context">
+                <div class="user-info">
+                    <span>@context?.User?.Identity?.Name</span>
+                    <a href="/chats">Chats</a>
+                    <a href="/friends">Friends</a>
+                    <button @onclick="Logout">Logout</button>
+                </div>
+            </Authorized>
+            <NotAuthorized>
+                <a href="login">Login</a>
+            </NotAuthorized>
+        </AuthorizeView>
+    </header>
+    <main>
+        @Body
+    </main>
+    <ToastContainer />
+</div>
+
+@code {
+    private void NavigateHome()
+    {
+        Navigation.NavigateTo("/");
+    }
+
+    private async Task Logout()
+    {
+        await AuthService.LogoutAsync();
+        Navigation.NavigateTo("login", true);
+    }
+}
+
