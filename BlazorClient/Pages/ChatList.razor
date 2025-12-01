@@ -191,7 +191,7 @@
 <div class="chat-list-container">
     <div class="chat-list-header">
         <h2>My Chats</h2>
-        <button class="create-group-btn" @onclick="ShowCreateGroupModal">Create Group Chat</button>
+        <button class="create-group-btn" @onclick="GoToGroupChatPage">Create Group Chat</button>
     </div>
 
     <div class="chat-sections">
@@ -369,6 +369,11 @@
         newGroupName = string.Empty;
         newGroupDescription = string.Empty;
         selectedFriends.Clear();
+    }
+
+    private void GoToGroupChatPage()
+    {
+        Navigation.NavigateTo("/chatrooms");
     }
 
     private async Task CreateGroupChat()

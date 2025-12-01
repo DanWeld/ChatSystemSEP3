@@ -1,24 +1,28 @@
 @page "/"
 @page "/chatrooms"
 @attribute [Authorize]
+@using BlazorClient.Shared
 @inject HttpClient Http
 @inject NavigationManager Navigation
 
-<h2>Chat Rooms</h2>
+<h2>Group Chats</h2>
 
 <div class="chatrooms">
     <EditForm Model="createModel" OnValidSubmit="CreateRoomAsync">
         <DataAnnotationsValidator />
         <ValidationSummary />
         <div class="create-room">
-            <input @bind="createModel.Name" placeholder="New room name" />
-            <button type="submit">Create</button>
+            <input @bind="createModel.Name" placeholder="New group name" />
         </div>
+        <div class="create-room">
+            <input @bind="createModel.Description" placeholder="Optional description" />
+        </div>
+        <button type="submit">Create Group Chat</button>
     </EditForm>
 
     @if (rooms.Count == 0)
     {
-        <p>No chat rooms yet. Create one above!</p>
+        <p>No group chats yet. Create one above!</p>
     }
     else
     {
@@ -41,7 +45,7 @@
 
 @code {
     private List<ChatRoomDto> rooms = new();
-    private CreateChatRoomRequest createModel = new();
+    private CreateGroupChatRequest createModel = new();
     private string? error;
 
     protected override async Task OnInitializedAsync()
@@ -54,11 +58,13 @@
         try
         {
             error = null;
-            rooms = await Http.GetFromJsonAsync<List<ChatRoomDto>>("api/chatrooms") ?? new List<ChatRoomDto>();
+            // Load only group chats the current user is a member of
+            rooms = await Http.GetFromJsonAsync<List<ChatRoomDto>>("api/groupchat/my-chats")
+                ?? new List<ChatRoomDto>();
         }
         catch
         {
-            error = "Unable to load chat rooms.";
+            error = "Unable to load group chats.";
             rooms = new List<ChatRoomDto>();
         }
     }
@@ -68,20 +74,24 @@
         error = null;
         try
         {
-            var response = await Http.PostAsJsonAsync("api/chatrooms", createModel);
+            // Owner is taken from the JWT on the API side; MemberIds can be left empty.
+            var response = await Http.PostAsJsonAsync("api/groupchat", createModel);
             if (response.IsSuccessStatusCode)
             {
-                createModel = new CreateChatRoomRequest();
+                createModel = new CreateGroupChatRequest();
                 await LoadRoomsAsync();
             }
             else
             {
-                error = "Unable to create chat room.";
+                var content = await response.Content.ReadAsStringAsync();
+                error = string.IsNullOrWhiteSpace(content)
+                    ? "Unable to create group chat."
+                    : $"Unable to create group chat: {content}";
             }
         }
-        catch
+        catch (Exception ex)
         {
-            error = "Unable to create chat room.";
+            error = $"Unable to create group chat: {ex.Message}";
         }
     }
 
@@ -90,4 +100,3 @@
         Navigation.NavigateTo($"/chat/{roomId}");
     }
 }
-

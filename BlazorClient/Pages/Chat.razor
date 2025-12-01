@@ -9,6 +9,7 @@
 @inject TokenStorageService TokenStorage
 @inject NavigationManager Navigation
 @inject BlazorClient.Services.ToastService ToastService
+@inject BlazorClient.Services.FriendApiService FriendService
 @inject Microsoft.JSInterop.IJSRuntime JSRuntime
 @using Microsoft.JSInterop
 
@@ -342,6 +343,57 @@
         background: #f44336;
         box-shadow: 0 0 8px #f44336;
     }
+
+    .invite-button {
+        margin-top: 0.75rem;
+        padding: 0.4rem 0.9rem;
+        font-size: 0.85rem;
+        border-radius: 999px;
+        border: 1px solid #667eea;
+        background: white;
+        color: #667eea;
+        cursor: pointer;
+    }
+
+    .invite-modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+    }
+
+    .invite-modal {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+        max-width: 450px;
+        width: 90%;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .invite-modal h3 {
+        margin-top: 0;
+        margin-bottom: 0.75rem;
+    }
+
+    .invite-list {
+        max-height: 220px;
+        overflow-y: auto;
+        margin-top: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .invite-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.5rem;
+    }
 </style>
 
 <div class="chat-container">
@@ -356,6 +408,12 @@
             <button @onclick="SearchMessagesAsync">Search</button>
             <button class="secondary" @onclick="ClearSearch" disabled="@(!searchPerformed)">Clear</button>
         </div>
+        @if (isGroupChat)
+        {
+            <button class="invite-button" type="button" @onclick="OpenInviteModal">
+                Invite friends to this group
+            </button>
+        }
     </div>
 
     @if (searchPerformed)
@@ -371,7 +429,7 @@
                 <ul>
                     @foreach (var result in searchResults)
                     {
-                        <li style="cursor: pointer; padding: 0.5rem; border-radius: 4px;" 
+                        <li style="cursor: pointer; padding: 0.5rem; border-radius: 4px;"
                             @onclick="() => JumpToMessage(result.Id)">
                             <span>@result.SentAtUtc.ToLocalTime(): @(
                                     result.IsDeleted ? "[deleted]" : result.Text.Length > 60 ? result.Text[..60] + "..." : result.Text
@@ -436,8 +494,8 @@
             </div>
         }
         <div class="input-wrapper">
-            <input 
-                class="message-input" 
+            <input
+                class="message-input"
                 @bind="currentText"
                 @bind:event="oninput"
                 @onkeydown="HandleKeyDown"
@@ -445,9 +503,9 @@
                 placeholder="@(isEditing ? "Update your message..." : "Type your message...")"
                 autocomplete="off"
                 id="message-input-field" />
-            <button 
-                class="send-button" 
-                @onclick="SendAsync" 
+            <button
+                class="send-button"
+                @onclick="SendAsync"
                 disabled="@(string.IsNullOrWhiteSpace(currentText))"
                 type="button"
                 id="send-message-button">
@@ -465,13 +523,13 @@
                     <text>Type a message to send...</text>
                 }
             </span>
-            <button 
+            <button
                 type="button"
                 style="padding: 0.25rem 0.5rem; font-size: 0.7rem; background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; margin-left: 0.5rem;"
                 @onclick="TestInput">
                 Test Input
             </button>
-            <button 
+            <button
                 type="button"
                 style="padding: 0.25rem 0.5rem; font-size: 0.7rem; background: #4caf50; color: white; border: 1px solid #4caf50; border-radius: 4px; cursor: pointer; margin-left: 0.5rem;"
                 @onclick="ForceSendTest">
@@ -480,6 +538,53 @@
         </div>
     </div>
 </div>
+
+@if (showInviteModal && isGroupChat)
+{
+    <div class="invite-modal-overlay" @onclick="CloseInviteModal">
+        <div class="invite-modal" @onclick:stopPropagation="true">
+            <h3>Invite friends to this group</h3>
+            @if (isLoadingInviteData)
+            {
+                <p>Loading friends...</p>
+            }
+            else if (availableFriendsToInvite.Count == 0)
+            {
+                <p>You have no friends to invite. Add friends first from the Friends page.</p>
+            }
+            else
+            {
+                <p>Select one or more friends to add to this group chat.</p>
+                <div class="invite-list">
+                    @foreach (var friend in availableFriendsToInvite)
+                    {
+                        <div style="padding: 0.5rem 0;">
+                            <input type="checkbox"
+                                   id="friend-@friend.UserId"
+                                   checked="@selectedInviteFriendIds.Contains(friend.UserId)"
+                                   @onchange="@((ChangeEventArgs e) => {
+                                       if (e.Value is bool isChecked)
+                                       {
+                                           if (isChecked && !selectedInviteFriendIds.Contains(friend.UserId))
+                                               selectedInviteFriendIds.Add(friend.UserId);
+                                           else if (!isChecked)
+                                               selectedInviteFriendIds.Remove(friend.UserId);
+                                       }
+                                   })" />
+                            <label for="friend-@friend.UserId" style="margin-left: 0.5rem; cursor: pointer;">@friend.Username</label>
+                        </div>
+                    }
+                </div>
+            }
+            <div class="invite-actions">
+                <button type="button" class="secondary" @onclick="CloseInviteModal">Cancel</button>
+                <button type="button" @onclick="InviteSelectedFriends" disabled="@(isLoadingInviteData || selectedInviteFriendIds.Count == 0)">
+                    Add to group
+                </button>
+            </div>
+        </div>
+    </div>
+}
 
 @code {
     [Parameter] public int ChatRoomId { get; set; }
@@ -495,10 +600,22 @@
     private bool searchPerformed;
     private List<MessageDto> searchResults = new();
 
+    // Whether this room is a group chat (true) or private chat (false)
+    private bool isGroupChat;
+
+    // Group chat invitations
+    private bool showInviteModal;
+    private bool isLoadingInviteData;
+    private List<FriendDto> allFriends = new();
+    private List<int> selectedInviteFriendIds = new();
+
+    // For now, show all friends (server will reject duplicates or non-members appropriately)
+    private List<FriendDto> availableFriendsToInvite => allFriends;
+
     protected override async Task OnInitializedAsync()
     {
         Console.WriteLine($"OnInitializedAsync: ChatRoomId = {ChatRoomId}");
-        
+
         ChatService.OnMessageReceived += AddMessage;
         ChatService.OnMessageEdited += HandleMessageEdited;
         ChatService.OnMessageDeleted += HandleMessageDeleted;
@@ -527,7 +644,7 @@
                 Console.WriteLine($"Stack trace: {signalrEx.StackTrace}");
                 // Continue anyway - we can use HTTP fallback
             }
-            
+
             try
             {
                 await ChatService.JoinChat(ChatRoomId);
@@ -538,21 +655,24 @@
                 Console.WriteLine($"Failed to join chat: {joinEx.Message}");
                 // Continue anyway
             }
-            
+
             isConnected = ChatService.IsConnected;
             Console.WriteLine($"Final connection status: {isConnected}");
-            
+
             if (!isConnected)
             {
                 Console.WriteLine("Warning: SignalR connection not established, will use HTTP fallback");
             }
-            
+
             StateHasChanged();
 
+            // Detect whether this room is a group chat (for invite button)
+            await DetectGroupChatAsync();
+
             var history = await Http.GetFromJsonAsync<List<MessageDto>>($"api/chatrooms/{ChatRoomId}/messages");
-        if (history != null)
+            if (history != null)
             {
-            messages = history;
+                messages = history;
                 await ScrollToBottom();
             }
         }
@@ -564,6 +684,133 @@
             // Still allow sending messages via HTTP fallback
             StateHasChanged();
         }
+    }
+
+    private async Task DetectGroupChatAsync()
+    {
+        try
+        {
+            // If this succeeds, it's a group chat. For private chats the API
+            // will respond with an error (e.g. "Not a group chat").
+            var response = await Http.GetAsync($"api/groupchat/{ChatRoomId}/members");
+            isGroupChat = response.IsSuccessStatusCode;
+        }
+        catch
+        {
+            // Treat failures as non-group chats; we only use this to toggle UI
+            isGroupChat = false;
+        }
+        finally
+        {
+            StateHasChanged();
+        }
+    }
+
+    private async Task OpenInviteModal()
+    {
+        showInviteModal = true;
+        await LoadInviteData();
+    }
+
+    private void CloseInviteModal()
+    {
+        showInviteModal = false;
+        selectedInviteFriendIds.Clear();
+    }
+
+    private async Task LoadInviteData()
+    {
+        isLoadingInviteData = true;
+        allFriends = new List<FriendDto>();
+        selectedInviteFriendIds.Clear();
+        StateHasChanged();
+
+        try
+        {
+            Console.WriteLine("LoadInviteData: Starting to load friends...");
+
+            // Create a timeout task
+            var friendsTask = FriendService.GetFriendsAsync();
+            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(5));
+
+            var completedTask = await Task.WhenAny(friendsTask, timeoutTask);
+
+            if (completedTask == timeoutTask)
+            {
+                // Timeout occurred
+                Console.WriteLine("LoadInviteData: Request timed out after 5 seconds");
+                ToastService.ShowError("Loading friends timed out. Please check your connection and try again.");
+                allFriends = new List<FriendDto>();
+            }
+            else
+            {
+                // Friends task completed
+                try
+                {
+                    var friends = await friendsTask;
+                    Console.WriteLine($"LoadInviteData: Got {friends?.Count ?? 0} friends");
+                    allFriends = friends ?? new List<FriendDto>();
+                }
+                catch (HttpRequestException httpEx)
+                {
+                    Console.WriteLine($"LoadInviteData: HTTP error: {httpEx.Message}");
+                    ToastService.ShowError($"Failed to load friends: {httpEx.Message}");
+                    allFriends = new List<FriendDto>();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"LoadInviteData: Exception: {ex.Message}");
+                    Console.WriteLine($"LoadInviteData: Stack trace: {ex.StackTrace}");
+                    ToastService.ShowError($"Error loading friends: {ex.Message}");
+                    allFriends = new List<FriendDto>();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"LoadInviteData: Outer exception: {ex.Message}");
+            ToastService.ShowError($"Error loading friends: {ex.Message}");
+            allFriends = new List<FriendDto>();
+        }
+        finally
+        {
+            isLoadingInviteData = false;
+            Console.WriteLine($"LoadInviteData: Finished. Friends count: {allFriends.Count}, isLoading: {isLoadingInviteData}");
+            StateHasChanged();
+        }
+    }
+
+    private async Task InviteSelectedFriends()
+    {
+        if (selectedInviteFriendIds.Count == 0)
+        {
+            ToastService.ShowError("Please select at least one friend to invite.");
+            return;
+        }
+
+        foreach (var friendId in selectedInviteFriendIds)
+        {
+            try
+            {
+                var response = await Http.PostAsJsonAsync(
+                    $"api/groupchat/{ChatRoomId}/members",
+                    new { UserId = friendId });
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var error = await response.Content.ReadAsStringAsync();
+                    ToastService.ShowError($"Failed to add friend (ID {friendId}): {error}");
+                }
+            }
+            catch (Exception ex)
+            {
+                ToastService.ShowError($"Error adding friend (ID {friendId}): {ex.Message}");
+            }
+        }
+
+        ToastService.ShowSuccess("Friends added to the group (if this is a group chat and you have permission).");
+        await LoadInviteData();
+        CloseInviteModal();
     }
 
     private void AddMessage(MessageDto m)
