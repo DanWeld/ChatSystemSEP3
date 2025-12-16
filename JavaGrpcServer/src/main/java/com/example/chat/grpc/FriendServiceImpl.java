@@ -17,19 +17,18 @@ import com.example.chat.domain.MembershipRole;
 import com.example.chat.domain.PrivateChatRoom;
 import com.example.chat.domain.User;
 import com.example.chat.grpc.FriendServiceGrpc.FriendServiceImplBase;
-import com.example.chat.repositories.FriendRequestRepository;
-import com.example.chat.repositories.FriendshipRepository;
 import com.example.chat.repositories.ChatRoomMembershipRepository;
 import com.example.chat.repositories.ChatRoomRepository;
+import com.example.chat.repositories.FriendRequestRepository;
+import com.example.chat.repositories.FriendshipRepository;
 import com.example.chat.repositories.PrivateChatRoomRepository;
 import com.example.chat.repositories.UserRepository;
-
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
 
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 
 @Service
 public class FriendServiceImpl extends FriendServiceImplBase {
@@ -225,10 +224,10 @@ public class FriendServiceImpl extends FriendServiceImplBase {
         ChatRoom room = new ChatRoom();
         room.setRoomType(ChatRoomType.PRIVATE);
         room = chatRoomRepository.save(room);
-        
+
         // Flush to ensure room ID is generated
         chatRoomRepository.flush();
-        
+
         // Get the room ID and use getReference to get a managed proxy
         // This prevents Hibernate from trying to persist the ChatRoom again
         Integer roomId = room.getId();

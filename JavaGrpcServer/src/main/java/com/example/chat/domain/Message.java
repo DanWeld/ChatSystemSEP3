@@ -24,6 +24,7 @@ public class Message {
     @Column(name = "sender_id", nullable = false)
     private Integer senderId;
 
+ // message length
     @Column(length = 2000, nullable = false)
     private String text;
 

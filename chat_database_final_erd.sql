@@ -3,7 +3,8 @@
 CREATE SCHEMA IF NOT EXISTS chatsystem;
 
 -- Set schema
-SET search_path TO chatsystem, public;
+
+SET search_path TO chatsystem;
 
 
 -- USER TABLE
@@ -147,6 +148,13 @@ FROM chatsystem.friend_info fr
 JOIN chatsystem.users u1 ON fr.senderUserId = u1.id
 JOIN chatsystem.users u2 ON fr.receiverUserId = u2.id
 WHERE fr.requestStatus = 'pending';
+
+
+INSERT INTO chatsystem.message
+(id, text,timestamp,userid,chatRoomId, is_edited, is_deleted)
+VALUES
+    (2, 'Hi DW', NOW(), 1, 1, FALSE, FALSE);
+
 
 -- ============================================================================
 -- END OF SCHEMA
