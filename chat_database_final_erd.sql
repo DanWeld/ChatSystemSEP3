@@ -8,7 +8,7 @@ SET search_path TO chatsystem;
 
 
 -- USER TABLE
--- ============================================================================
+
 CREATE TABLE chatsystem.users (
     id SERIAL PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
@@ -19,7 +19,7 @@ CREATE TABLE chatsystem.users (
 -- CHATROOM TABLE
 -- type = 'private' or 'group'
 -- groupName nullable for private chats
--- ============================================================================
+
 CREATE TABLE chatsystem.chatroom (
     id SERIAL PRIMARY KEY,
     type VARCHAR(10) NOT NULL CHECK (type IN ('private', 'group')),
@@ -35,7 +35,7 @@ CREATE TABLE chatsystem.chatroom (
 );
 
 -- USER-CHATROOM LINK TABLE (Junction Table)
--- ============================================================================
+
 CREATE TABLE chatsystem.userchatroominfo (
     userId INTEGER NOT NULL REFERENCES chatsystem.users(id) ON DELETE CASCADE,
     chatRoomId INTEGER NOT NULL REFERENCES chatsystem.chatroom(id) ON DELETE CASCADE,
@@ -46,7 +46,7 @@ CREATE TABLE chatsystem.userchatroominfo (
 );
 
 -- MESSAGE TABLE
--- ============================================================================
+
 CREATE TABLE chatsystem.message (
     id SERIAL PRIMARY KEY,
     text TEXT NOT NULL,
@@ -62,7 +62,7 @@ CREATE TABLE chatsystem.message (
 -- FRIEND_INFO TABLE
 -- requestStatus = pending | accept | deny
 -- isFriend = TRUE only when accepted
--- ============================================================================
+
 CREATE TABLE chatsystem.friend_info (
     request_id SERIAL PRIMARY KEY,
     senderUserId INTEGER NOT NULL REFERENCES chatsystem.users(id) ON DELETE CASCADE,
@@ -82,9 +82,7 @@ CREATE TABLE chatsystem.friend_info (
     )
 );
 
--- ============================================================================
--- INDEXES FOR PERFORMANCE
--- ============================================================================
+
 
 -- User indexes
 CREATE INDEX IF NOT EXISTS idx_users_username ON chatsystem.users(username);
@@ -114,9 +112,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_friend_info_pending_unique
     ON chatsystem.friend_info(senderUserId, receiverUserId) 
     WHERE requestStatus = 'pending';
 
--- ============================================================================
--- HELPER VIEWS
--- ============================================================================
+
 
 -- View for active friendships (bidirectional)
 CREATE OR REPLACE VIEW chatsystem.user_friends AS
@@ -156,7 +152,5 @@ VALUES
     (2, 'Hi DW', NOW(), 1, 1, FALSE, FALSE);
 
 
--- ============================================================================
--- END OF SCHEMA
--- ============================================================================
+
 

@@ -30,6 +30,11 @@ import io.grpc.stub.StreamObserver;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 
+/**
+ * gRPC service implementation for friend management operations.
+ * This service handles friend requests, friendships, and private chat creation
+ * between friends.
+ */
 @Service
 public class FriendServiceImpl extends FriendServiceImplBase {
 
@@ -43,6 +48,16 @@ public class FriendServiceImpl extends FriendServiceImplBase {
     @PersistenceContext
     private EntityManager entityManager;
 
+    /**
+     * Constructs a new FriendServiceImpl with the specified repositories.
+     *
+     * @param friendRequestRepository the repository for friend request data access
+     * @param friendshipRepository the repository for friendship data access
+     * @param chatRoomRepository the repository for chat room data access
+     * @param privateChatRoomRepository the repository for private chat room data access
+     * @param membershipRepository the repository for chat room membership data access
+     * @param userRepository the repository for user data access
+     */
     public FriendServiceImpl(
         FriendRequestRepository friendRequestRepository,
         FriendshipRepository friendshipRepository,
@@ -58,6 +73,14 @@ public class FriendServiceImpl extends FriendServiceImplBase {
         this.userRepository = userRepository;
     }
 
+    /**
+     * Sends a friend request from one user to another.
+     * Validates that users exist, are not the same person, are not already friends,
+     * and don't have a pending request.
+     *
+     * @param request the request containing requester ID and target username
+     * @param responseObserver the observer to receive the response or error
+     */
     @Override
     public void sendFriendRequest(SendFriendRequestRequest request,
         StreamObserver<FriendRequestDto> responseObserver) {
@@ -112,6 +135,13 @@ public class FriendServiceImpl extends FriendServiceImplBase {
         }
     }
 
+    /**
+     * Responds to a friend request by accepting or declining it.
+     * If accepted, creates bidirectional friendship records and a private chat room.
+     *
+     * @param request the request containing request ID and accept/decline decision
+     * @param responseObserver the observer to receive the response or error
+     */
     @Override
     public void respondFriendRequest(RespondFriendRequestRequest request,
         StreamObserver<FriendRequestDto> responseObserver) {
@@ -148,6 +178,12 @@ public class FriendServiceImpl extends FriendServiceImplBase {
         }
     }
 
+    /**
+     * Lists all pending incoming friend requests for a user.
+     *
+     * @param request the request containing the user ID
+     * @param responseObserver the observer to receive the response or error
+     */
     @Override
     public void listIncomingRequests(ListFriendRequestsRequest request,
         StreamObserver<FriendRequestListResponse> responseObserver) {
@@ -166,6 +202,12 @@ public class FriendServiceImpl extends FriendServiceImplBase {
         }
     }
 
+    /**
+     * Lists all friends for a user.
+     *
+     * @param request the request containing the user ID
+     * @param responseObserver the observer to receive the response or error
+     */
     @Override
     public void listFriends(ListFriendsRequest request,
         StreamObserver<FriendListResponse> responseObserver) {
@@ -187,6 +229,13 @@ public class FriendServiceImpl extends FriendServiceImplBase {
         }
     }
 
+    /**
+     * Removes a friendship between two users.
+     * Deletes both friendship records (bidirectional).
+     *
+     * @param request the request containing user ID and friend ID
+     * @param responseObserver the observer to receive the response or error
+     */
     @Override
     public void removeFriend(RemoveFriendRequest request,
         StreamObserver<com.google.protobuf.Empty> responseObserver) {
@@ -201,12 +250,26 @@ public class FriendServiceImpl extends FriendServiceImplBase {
         }
     }
 
+    /**
+     * Creates a unidirectional friendship record.
+     *
+     * @param user the user who owns the friendship record
+     * @param friend the friend in the relationship
+     */
     private void createFriendship(User user, User friend) {
         Friendship friendship = new Friendship();
         friendship.setId(new FriendshipId(user.getId(), friend.getId()));
         friendshipRepository.save(friendship);
     }
 
+    /**
+     * Ensures a private chat room exists between two users.
+     * Creates the chat room and memberships if they don't exist.
+     * Users are ordered by ID to ensure consistency.
+     *
+     * @param userA the first user
+     * @param userB the second user
+     */
     private void ensurePrivateChat(User userA, User userB) {
         Optional<PrivateChatRoom> existing = privateChatRoomRepository
             .findByUserAIdAndUserBId(userA.getId(), userB.getId());
@@ -245,6 +308,14 @@ public class FriendServiceImpl extends FriendServiceImplBase {
         addMembership(managedRoom, userB, MembershipRole.MEMBER);
     }
 
+    /**
+     * Adds a user to a chat room with the specified role.
+     * Does nothing if the membership already exists.
+     *
+     * @param room the chat room
+     * @param user the user to add
+     * @param role the role to assign to the user
+     */
     private void addMembership(ChatRoom room, User user, MembershipRole role) {
         if (membershipRepository.existsByChatRoomAndUser(room, user)) {
             return;
@@ -257,6 +328,12 @@ public class FriendServiceImpl extends FriendServiceImplBase {
         membershipRepository.save(membership);
     }
 
+    /**
+     * Converts a domain FriendRequest entity to a protobuf FriendRequestDto message.
+     *
+     * @param fr the domain friend request entity
+     * @return the protobuf friend request DTO
+     */
     private FriendRequestDto toDto(FriendRequest fr) {
         return FriendRequestDto.newBuilder()
             .setId(fr.getId())
@@ -268,4 +345,3 @@ public class FriendServiceImpl extends FriendServiceImplBase {
             .build();
     }
 }
-

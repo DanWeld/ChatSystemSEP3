@@ -15,17 +15,33 @@ import com.google.protobuf.Empty;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 
+/**
+ * gRPC service implementation for chat and messaging operations.
+ * This service handles message sending, retrieval, editing, deletion, and search operations.
+ */
 @Service
 public class ChatServiceImpl extends ChatServiceImplBase {
 
     private final MessageRepository messageRepository;
     private final ChatRoomRepository chatRoomRepository;
 
+    /**
+     * Constructs a new ChatServiceImpl with the specified repositories.
+     *
+     * @param messageRepository the repository for message data access
+     * @param chatRoomRepository the repository for chat room data access
+     */
     public ChatServiceImpl(MessageRepository messageRepository, ChatRoomRepository chatRoomRepository) {
         this.messageRepository = messageRepository;
         this.chatRoomRepository = chatRoomRepository;
     }
 
+    /**
+     * Sends a new message to a chat room.
+     *
+     * @param request the request containing chat room ID, sender ID, and message text
+     * @param responseObserver the observer to receive the response or error
+     */
     @Override
     public void sendMessage(SendMessageRequest request,
         StreamObserver<SendMessageResponse> responseObserver) {
@@ -44,6 +60,12 @@ public class ChatServiceImpl extends ChatServiceImplBase {
         }
     }
 
+    /**
+     * Retrieves all messages from a chat room in chronological order.
+     *
+     * @param request the request containing the chat room ID
+     * @param responseObserver the observer to receive the response or error
+     */
     @Override
     public void getMessages(GetMessagesRequest request,
         StreamObserver<GetMessagesResponse> responseObserver) {
@@ -65,6 +87,12 @@ public class ChatServiceImpl extends ChatServiceImplBase {
         }
     }
 
+    /**
+     * Lists all chat rooms in the system.
+     *
+     * @param request empty request
+     * @param responseObserver the observer to receive the response or error
+     */
     @Override
     public void listChatRooms(Empty request, StreamObserver<ListChatRoomsResponse> responseObserver) {
         try {
@@ -81,6 +109,13 @@ public class ChatServiceImpl extends ChatServiceImplBase {
         }
     }
 
+    /**
+     * Edits an existing message.
+     * Only the message sender can edit their message, and deleted messages cannot be edited.
+     *
+     * @param request the request containing message ID, sender ID, and new text
+     * @param responseObserver the observer to receive the response or error
+     */
     @Override
     public void editMessage(EditMessageRequest request, StreamObserver<Message> responseObserver) {
         try {
@@ -121,6 +156,14 @@ public class ChatServiceImpl extends ChatServiceImplBase {
         }
     }
 
+    /**
+     * Deletes a message.
+     * Only the message sender can delete their message. The message text is cleared
+     * and marked as deleted.
+     *
+     * @param request the request containing message ID and requester ID
+     * @param responseObserver the observer to receive the response or error
+     */
     @Override
     public void deleteMessage(DeleteMessageRequest request, StreamObserver<Message> responseObserver) {
         try {
@@ -156,6 +199,13 @@ public class ChatServiceImpl extends ChatServiceImplBase {
         }
     }
 
+    /**
+     * Searches for messages containing specific text in a chat room.
+     * The search is case-insensitive.
+     *
+     * @param request the request containing chat room ID and search query
+     * @param responseObserver the observer to receive the response or error
+     */
     @Override
     public void searchMessages(SearchMessagesRequest request, StreamObserver<GetMessagesResponse> responseObserver) {
         try {
@@ -182,6 +232,12 @@ public class ChatServiceImpl extends ChatServiceImplBase {
         }
     }
 
+    /**
+     * Creates a new chat room.
+     *
+     * @param request the request containing chat room details
+     * @param responseObserver the observer to receive the response or error
+     */
     @Override
     public void createChatRoom(CreateChatRoomRequest request,
         StreamObserver<CreateChatRoomResponse> responseObserver) {
@@ -208,6 +264,12 @@ public class ChatServiceImpl extends ChatServiceImplBase {
         }
     }
 
+    /**
+     * Maps a domain ChatRoom entity to a protobuf ChatRoom message.
+     *
+     * @param room the domain chat room entity
+     * @return the protobuf chat room message
+     */
     private com.example.chat.grpc.ChatRoom mapRoom(ChatRoom room) {
         String name = "Room " + room.getId();
         return com.example.chat.grpc.ChatRoom.newBuilder()
@@ -216,6 +278,12 @@ public class ChatServiceImpl extends ChatServiceImplBase {
             .build();
     }
 
+    /**
+     * Maps a domain Message entity to a protobuf Message message.
+     *
+     * @param message the domain message entity
+     * @return the protobuf message
+     */
     private com.example.chat.grpc.Message mapMessage(com.example.chat.domain.Message message) {
         com.example.chat.grpc.Message.Builder builder = com.example.chat.grpc.Message.newBuilder()
             .setId(message.getId())

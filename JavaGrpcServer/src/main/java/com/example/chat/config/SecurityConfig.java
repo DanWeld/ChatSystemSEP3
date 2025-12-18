@@ -15,12 +15,24 @@ import org.springframework.security.web.SecurityFilterChain;
 
 import static org.springframework.security.config.Customizer.withDefaults;
 
+/**
+ * Security configuration for the Chat System application.
+ * This class sets up user authentication and authorization using Spring Security.
+ * It defines in-memory users with roles, configures HTTP security for REST endpoints,
+ * and provides password encoding.
+ */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
 
-    // Create users
+    /**
+     * Configures in-memory user details service with predefined users.
+     * Creates admin, user, and customer accounts for testing and demonstration.
+     *
+     * @param encoder the password encoder to use for encoding passwords
+     * @return the configured UserDetailsService
+     */
     @Bean
     public UserDetailsService userDetailsService(PasswordEncoder encoder) {
         // setup users utilizing InMemoryUserDetailsManager
@@ -39,7 +51,16 @@ public class SecurityConfig {
         return new InMemoryUserDetailsManager(admin, user, customer);
     }
 
-    // Configure HttpSecurity
+    /**
+     * Configures HTTP security for REST endpoints.
+     * Defines access rules based on user roles and secures the endpoints.
+     * Public endpoints are accessible without authentication, while protected
+     * endpoints require specific roles.
+     *
+     * @param http the HttpSecurity to configure
+     * @return the configured SecurityFilterChain
+     * @throws Exception if an error occurs during configuration
+     */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -62,7 +83,12 @@ public class SecurityConfig {
         return http.build();
     }
 
-    // Password Encoding
+    /**
+     * Provides a password encoder bean using BCrypt.
+     * This bean is used to encode passwords for user authentication.
+     *
+     * @return the BCrypt password encoder
+     */
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();

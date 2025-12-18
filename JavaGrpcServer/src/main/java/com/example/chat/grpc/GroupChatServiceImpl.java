@@ -29,6 +29,11 @@ import org.springframework.transaction.annotation.Transactional;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 
+/**
+ * gRPC service implementation for group chat operations.
+ * This service handles creating group chats, managing members, promoting members,
+ * and retrieving private chat rooms between users.
+ */
 @Service
 public class GroupChatServiceImpl extends GroupChatServiceImplBase {
 
@@ -41,6 +46,15 @@ public class GroupChatServiceImpl extends GroupChatServiceImplBase {
     @PersistenceContext
     private EntityManager entityManager;
 
+    /**
+     * Constructs a new GroupChatServiceImpl with the specified repositories.
+     *
+     * @param chatRoomRepository the repository for chat room data access
+     * @param groupChatRoomRepository the repository for group chat room data access
+     * @param privateChatRoomRepository the repository for private chat room data access
+     * @param membershipRepository the repository for chat room membership data access
+     * @param userRepository the repository for user data access
+     */
     public GroupChatServiceImpl(
             ChatRoomRepository chatRoomRepository,
             GroupChatRoomRepository groupChatRoomRepository,
@@ -54,6 +68,12 @@ public class GroupChatServiceImpl extends GroupChatServiceImplBase {
         this.userRepository = userRepository;
     }
 
+    /**
+     * Creates a new group chat with the specified owner and members.
+     *
+     * @param request the request containing owner ID, group name, description, and member IDs
+     * @param responseObserver the observer to receive the response or error
+     */
     @Override
     public void createGroupChat(CreateGroupChatRequest request, StreamObserver<CreateGroupChatResponse> responseObserver) {
         try {
@@ -110,6 +130,13 @@ public class GroupChatServiceImpl extends GroupChatServiceImplBase {
         }
     }
 
+    /**
+     * Adds a member to a group chat.
+     * Requires the requester to be an OWNER or ADMIN of the group.
+     *
+     * @param request the request containing chat room ID, requester ID, and user ID to add
+     * @param responseObserver the observer to receive the response or error
+     */
     @Override
     public void addMember(AddMemberRequest request, StreamObserver<Empty> responseObserver) {
         try {
@@ -165,6 +192,13 @@ public class GroupChatServiceImpl extends GroupChatServiceImplBase {
         }
     }
 
+    /**
+     * Removes a member from a group chat.
+     * Requires the requester to be an OWNER or ADMIN. Cannot remove the owner.
+     *
+     * @param request the request containing chat room ID, requester ID, and user ID to remove
+     * @param responseObserver the observer to receive the response or error
+     */
     @Override
     public void removeMember(RemoveMemberRequest request, StreamObserver<Empty> responseObserver) {
         try {
@@ -222,6 +256,13 @@ public class GroupChatServiceImpl extends GroupChatServiceImplBase {
         }
     }
 
+    /**
+     * Promotes a member to ADMIN role.
+     * Only the OWNER can promote members. Members are promoted from MEMBER to ADMIN.
+     *
+     * @param request the request containing chat room ID, requester ID, and user ID to promote
+     * @param responseObserver the observer to receive the response or error
+     */
     @Override
     public void promoteMember(PromoteMemberRequest request, StreamObserver<Empty> responseObserver) {
         try {
@@ -274,6 +315,12 @@ public class GroupChatServiceImpl extends GroupChatServiceImplBase {
         }
     }
 
+    /**
+     * Lists all members of a chat room with their roles.
+     *
+     * @param request the request containing the chat room ID
+     * @param responseObserver the observer to receive the response or error
+     */
     @Override
     public void listMembers(ListMembersRequest request, StreamObserver<ListMembersResponse> responseObserver) {
         try {
@@ -302,6 +349,12 @@ public class GroupChatServiceImpl extends GroupChatServiceImplBase {
         }
     }
 
+    /**
+     * Lists all chat rooms (group chats only) that a user is a member of.
+     *
+     * @param request the request containing the user ID
+     * @param responseObserver the observer to receive the response or error
+     */
     @Override
     public void listUserChatRooms(ListUserChatRoomsRequest request, StreamObserver<ListUserChatRoomsResponse> responseObserver) {
         try {
@@ -334,6 +387,13 @@ public class GroupChatServiceImpl extends GroupChatServiceImplBase {
         }
     }
 
+    /**
+     * Gets or creates a private chat room between two users.
+     * Creates the chat room and memberships if they don't already exist.
+     *
+     * @param request the request containing the two user IDs
+     * @param responseObserver the observer to receive the response or error
+     */
     @Override
     @Transactional
     public void getPrivateChatRoom(GetPrivateChatRoomRequest request, StreamObserver<GetPrivateChatRoomResponse> responseObserver) {
@@ -372,6 +432,14 @@ public class GroupChatServiceImpl extends GroupChatServiceImplBase {
         }
     }
 
+    /**
+     * Finds an existing private chat room or creates a new one between two users.
+     * Users are ordered by ID to ensure consistency with database constraints.
+     *
+     * @param userA the first user
+     * @param userB the second user
+     * @return the private chat room
+     */
     @Transactional
     private PrivateChatRoom findOrCreatePrivateChat(User userA, User userB) {
         // Check both orders for existing room
@@ -417,6 +485,13 @@ public class GroupChatServiceImpl extends GroupChatServiceImplBase {
         return newRoom;
     }
 
+    /**
+     * Ensures a user is a member of a chat room.
+     * Creates the membership if it doesn't exist.
+     *
+     * @param room the chat room
+     * @param user the user
+     */
     private void ensureMembership(ChatRoom room, User user) {
         if (membershipRepository.existsByChatRoomAndUser(room, user)) {
             return;
@@ -429,6 +504,13 @@ public class GroupChatServiceImpl extends GroupChatServiceImplBase {
         membershipRepository.save(membership);
     }
 
+    /**
+     * Maps a domain ChatRoom entity to a protobuf ChatRoom message.
+     *
+     * @param room the domain chat room entity
+     * @param name the name to use for the chat room
+     * @return the protobuf chat room message
+     */
     private com.example.chat.grpc.ChatRoom mapChatRoom(ChatRoom room, String name) {
         return com.example.chat.grpc.ChatRoom.newBuilder()
                 .setId(room.getId())
@@ -436,6 +518,14 @@ public class GroupChatServiceImpl extends GroupChatServiceImplBase {
                 .build();
     }
 
+    /**
+     * Gets the display name for a chat room.
+     * For group chats, returns the group name. For private chats, returns "UserA & UserB".
+     * Falls back to "Room {id}" if name cannot be determined.
+     *
+     * @param room the chat room
+     * @return the display name
+     */
     private String getChatRoomName(ChatRoom room) {
         if (room.getRoomType() == ChatRoomType.GROUP) {
             Optional<GroupChatRoom> groupRoom = groupChatRoomRepository.findByChatRoomId(room.getId());
@@ -451,4 +541,3 @@ public class GroupChatServiceImpl extends GroupChatServiceImplBase {
         return "Room " + room.getId();
     }
 }
-

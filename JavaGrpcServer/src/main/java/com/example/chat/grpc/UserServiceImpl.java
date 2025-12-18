@@ -11,17 +11,33 @@ import com.example.chat.repositories.UserRepository;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 
+/**
+ * gRPC service implementation for user management operations.
+ * This service handles user registration, authentication, and user data retrieval.
+ */
 @Service
 public class UserServiceImpl extends UserServiceImplBase {
 
     private final UserRepository userRepository;
     private final BCryptPasswordEncoder passwordEncoder;
 
+    /**
+     * Constructs a new UserServiceImpl with the specified repository.
+     *
+     * @param userRepository the repository for user data access
+     */
     public UserServiceImpl(UserRepository userRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = new BCryptPasswordEncoder();
     }
 
+    /**
+     * Registers a new user in the system.
+     * Validates that the username is unique and stores the password as a BCrypt hash.
+     *
+     * @param request the registration request containing username and password
+     * @param responseObserver the observer to receive the response or error
+     */
     @Override
     public void registerUser(RegisterUserRequest request, StreamObserver<RegisterUserResponse> responseObserver) {
         try {
@@ -50,6 +66,13 @@ public class UserServiceImpl extends UserServiceImplBase {
         }
     }
 
+    /**
+     * Authenticates a user with username and password.
+     * Validates credentials and returns user information if successful.
+     *
+     * @param request the login request containing username and password
+     * @param responseObserver the observer to receive the response or error
+     */
     @Override
     public void login(LoginRequest request, StreamObserver<LoginResponse> responseObserver) {
         try {
@@ -74,6 +97,12 @@ public class UserServiceImpl extends UserServiceImplBase {
         }
     }
 
+    /**
+     * Retrieves user information by user ID.
+     *
+     * @param request the request containing the user ID
+     * @param responseObserver the observer to receive the response or error
+     */
     @Override
     public void getUser(GetUserRequest request, StreamObserver<GetUserResponse> responseObserver) {
         try {
@@ -100,6 +129,12 @@ public class UserServiceImpl extends UserServiceImplBase {
         }
     }
 
+    /**
+     * Converts a domain User entity to a protobuf User message.
+     *
+     * @param user the domain user entity
+     * @return the protobuf user message
+     */
     private com.example.chat.grpc.User toProtoUser(User user)
     {
         return com.example.chat.grpc.User.newBuilder()

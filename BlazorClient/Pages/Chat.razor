@@ -853,7 +853,7 @@
     {
         Console.WriteLine($"SendAsync called. currentText value: '{currentText}'");
         Console.WriteLine($"currentText is null or whitespace: {string.IsNullOrWhiteSpace(currentText)}");
-        
+
         if (string.IsNullOrWhiteSpace(currentText))
         {
             Console.WriteLine("SendAsync: currentText is empty, showing error");
@@ -870,11 +870,11 @@
         }
 
         Console.WriteLine($"SendAsync: Sending message '{textToSend}' to room {ChatRoomId}");
-        
+
         // Clear input immediately for better UX
         currentText = "";
         StateHasChanged();
-        
+
         // Small delay to ensure UI updates
         await Task.Delay(50);
 
@@ -922,7 +922,7 @@
         Console.WriteLine($"TestInput called. currentText = '{currentText}'");
         Console.WriteLine($"currentText length: {currentText?.Length ?? 0}");
         ToastService.ShowInfo($"Input test: '{currentText}' (length: {currentText?.Length ?? 0})");
-        
+
         // Try to set a test value
         currentText = "Test message " + DateTime.Now.Second;
         StateHasChanged();
@@ -961,12 +961,12 @@ Current User ID: {await GetCurrentUserId()}
             var token = await TokenStorage.GetTokenAsync();
             if (string.IsNullOrWhiteSpace(token))
                 return -1;
-            
+
             // Decode JWT to get user ID (simple base64 decode of payload)
             var parts = token.Split('.');
             if (parts.Length < 2)
                 return -1;
-            
+
             var payload = parts[1];
             // Add padding if needed
             switch (payload.Length % 4)
@@ -974,7 +974,7 @@ Current User ID: {await GetCurrentUserId()}
                 case 2: payload += "=="; break;
                 case 3: payload += "="; break;
             }
-            
+
             var jsonBytes = Convert.FromBase64String(payload);
             var json = System.Text.Encoding.UTF8.GetString(jsonBytes);
             var doc = System.Text.Json.JsonDocument.Parse(json);
@@ -997,7 +997,7 @@ Current User ID: {await GetCurrentUserId()}
         try
         {
             Console.WriteLine($"Sending message via HTTP to chatroom {ChatRoomId}: {textToSend}");
-            
+
             // Validate message before sending
             if (string.IsNullOrWhiteSpace(textToSend))
             {
@@ -1006,6 +1006,7 @@ Current User ID: {await GetCurrentUserId()}
                 return;
             }
 
+             // Enforce maximum length
             if (textToSend.Length > 2000)
             {
                 ToastService.ShowError("Message is too long (maximum 2000 characters)");
@@ -1039,15 +1040,15 @@ Current User ID: {await GetCurrentUserId()}
             Console.WriteLine($"Token length: {token?.Length ?? 0}");
             Console.WriteLine($"ChatRoomId: {ChatRoomId}");
             Console.WriteLine($"Http.BaseAddress: {Http.BaseAddress}");
-            
+
             var requestBody = new { Text = textToSend };
             var fullUrl = $"api/chatrooms/{ChatRoomId}/messages";
             Console.WriteLine($"Full URL will be: {Http.BaseAddress}{fullUrl}");
-            
+
             var response = await Http.PostAsJsonAsync(fullUrl, requestBody);
-            
+
             Console.WriteLine($"HTTP response status: {response.StatusCode}");
-            
+
             if (response.IsSuccessStatusCode)
             {
                 var newMessage = await response.Content.ReadFromJsonAsync<MessageDto>();
@@ -1069,7 +1070,7 @@ Current User ID: {await GetCurrentUserId()}
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
                 Console.WriteLine($"HTTP error: {response.StatusCode} - {errorContent}");
-                
+
                 // Parse error message for better user feedback
                 string errorMessage = $"Failed to send message";
                 if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
@@ -1100,7 +1101,7 @@ Current User ID: {await GetCurrentUserId()}
                         errorMessage = errorContent.Length > 100 ? errorContent.Substring(0, 100) + "..." : errorContent;
                     }
                 }
-                
+
                 ToastService.ShowError(errorMessage);
                 currentText = textToSend; // Restore text on error
                 throw new Exception($"HTTP send failed: {response.StatusCode} - {errorMessage}");
