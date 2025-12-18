@@ -141,6 +141,24 @@
                     </execution>
                 </executions>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.12.0</version>
+                <configuration>
+                    <outputDirectory>${project.basedir}/src/main/javadoc/apidocs</outputDirectory>
+                    <show>public</show>
+                    <encoding>UTF-8</encoding>
+                    <charset>UTF-8</charset>
+                    <docencoding>UTF-8</docencoding>
+                    <author>true</author>
+                    <version>true</version>
+                    <use>true</use>
+                    <windowtitle>Chat System API Documentation</windowtitle>
+                    <doctitle>Chat System gRPC Server - API Documentation</doctitle>
+                    <bottom>Copyright © 2025. All Rights Reserved.</bottom>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 </project>
